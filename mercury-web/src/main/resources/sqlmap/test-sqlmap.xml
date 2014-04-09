@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<sqlMap namespace="test">
+	<typeAlias type="com.dianping.data.warehouse.common.domain.TestDO" alias="TestDO" />
+	<typeAlias type="com.dianping.data.warehouse.common.query.TestQuery"
+		alias="testQuery" />
+	<resultMap class="TestDO" id="test">
+		<result property="id" column="ID" />
+		<result property="name" column="NAME" />
+		<result property="gmtCreate" column="GMT_CREATE" />
+	</resultMap>
+	<statement id="getById" resultMap="test" parameterClass="java.lang.Integer">
+		SELECT * FROM TEST WHERE ID=#id:INTEGER#
+  	</statement>
+	<statement id="getByQuery" resultMap="test"
+		parameterClass="testQuery">
+		SELECT * FROM TEST WHERE 1=1
+		<isNotNull property="name" prepend=" AND ">
+			NAME like #name:VARCHAR#
+		</isNotNull>
+		LIMIT #start#, #numPerPage#
+	</statement>
+	<insert id="save" parameterClass="TestDO">
+		INSERT INTO TEST
+		(NAME, GMT_CREATE)
+		VALUES
+		(#name:VARCHAR#, now())
+		<selectKey resultClass="int" keyProperty="id"> 
+ 			SELECT LAST_INSERT_ID() 
+		</selectKey>
+	</insert>
+</sqlMap>

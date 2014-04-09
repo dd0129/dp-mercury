@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<sqlMap namespace="mcsqlservermeta">
+	<typeAlias type="com.dianping.data.warehouse.domain.McColumnInfo" alias="McColumnInfo" />
+	<typeAlias type="com.dianping.data.warehouse.domain.McTableInfo" alias="McTableInfo" />
+    <typeAlias type="com.dianping.data.warehouse.domain.McTableQuery" alias="McTableQuery" />
+	<resultMap class="McTableInfo" id="table"></resultMap>
+    <select id="getSqlserverDbNameList" parameterClass="String" resultClass="String">
+        select distinct db_name
+        from mc_db_info
+        where cluster_name = #Storage_type#
+    </select>
+    <select id="getSqlserverTableList" parameterClass="McTableQuery" resultClass="McTableInfo">
+		SELECT 'sqlserver' as storage_type
+               ,#dbName# as db_name
+		       ,SCHEMA_NAME(uid) as schema_name
+		       ,name as table_name
+        FROM    sysobjects 
+        WHERE   xtype='U'
+        <isNotNull property="tableName" prepend=" AND "> LOWER(name) LIKE '%$tableName$%'</isNotNull>
+	</select>
+	<select id="getSqlserverColumnList" parameterClass="McTableQuery" resultClass="McColumnInfo">
+		SELECT
+              b.name AS column_name,                                     
+              c.name+'('+rtrim(cast(b.length as char))+')' AS column_type
+        FROM sysobjects a 
+        JOIN syscolumns b ON a.id=b.id       
+        JOIN systypes c ON b.xtype=c.xtype 
+        WHERE a.name=#tableName#
+         AND SCHEMA_NAME(a.uid)=#schemaName#
+         AND c.name != 'sysname'
+        ORDER BY b.colorder;
+	</select>
+</sqlMap>

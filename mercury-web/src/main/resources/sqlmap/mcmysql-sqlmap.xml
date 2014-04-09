@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<sqlMap namespace="mcmysql">
+	<typeAlias type="com.dianping.data.warehouse.domain.McTableInfo"
+		alias="McTableInfo" />
+	<typeAlias type="com.dianping.data.warehouse.domain.McColumnInfo"
+		alias="McColumnInfo" />
+	<typeAlias type="com.dianping.data.warehouse.domain.TableExistInfo"
+		alias="TableExistInfo" />
+    <typeAlias type="com.dianping.data.warehouse.domain.McDbInfo"
+               alias="McDbInfo" />
+    <typeAlias type="com.dianping.data.warehouse.domain.McDataTaskMap"
+               alias="McDataTaskMap" />
+    <typeAlias type="com.dianping.data.warehouse.domain.McDataMap"
+               alias="McDataMap" />
+	<select id="getParentTaskId" parameterClass="McTableInfo"
+		resultClass="Integer">
+		select a.task_id
+		from mc_data_task_map a,
+		mc_table_info b
+		where
+		a.table_id = b.table_id
+		and b.storage_type = #storage_type#
+		and b.db_name = #db_name#
+		and b.table_name = #table_name#
+	</select>
+	<select id="getTableId" parameterClass="McTableInfo"
+		resultClass="Integer">
+		select table_id
+		from mc_table_info b
+		where b.storage_type = #storage_type#
+		and b.db_name = #db_name#
+		and b.table_name = #table_name#
+	</select>
+	<select id="getTgtColumnList" parameterClass="McTableInfo"
+		resultClass="McColumnInfo">
+		select a.column_name	                                  
+			  ,a.column_type	            
+              ,a.column_desc	            
+              ,a.default_value	        
+              ,a.column_access_level	
+              ,a.column_access_desc	
+              ,a.column_rn	                
+              ,a.is_partition_column  
+		from mc_table_info b, 
+		     mc_column_info a
+		where a.table_id = b.table_id
+		and b.storage_type = #storage_type#
+		and b.db_name = #db_name#
+		and b.table_name = #table_name#
+	</select>
+	<select id="getDbId" parameterClass="McTableInfo"
+		resultClass="Integer">
+		select db_id
+		from mc_db_info 
+		where cluster_name = #storage_type#
+		and db_name = #db_name#
+	</select>
+	<select id="gettableExistStatus" parameterClass="java.util.Map"
+		resultClass="TableExistInfo">
+		SELECT c.cluster_name,
+		     c.db_name,
+		     a.parent_table_name as table_name,
+		     MAX(case when b.cluster_name ='gp_report' then TRUE else FALSE end) AS gpReportExist,
+		     MAX(case when b.cluster_name ='gp_analysis' then TRUE else FALSE end) AS gpAnalysisExist,
+		     MAX(case when b.cluster_name ='hive' then TRUE else FALSE end) AS hiveExist,
+             MAX(case when b.cluster_name ='gp_report' then a.task_id else 0 end) AS gpReportTaskId,
+             MAX(case when b.cluster_name ='gp_analysis' then a.task_id else FALSE end) AS gpAnalysisTaskId,
+             MAX(case when b.cluster_name ='hive' then a.task_id else FALSE end) AS hiveTaskId
+		from mc_data_map a,
+		mc_db_info b,
+		mc_db_info c,
+        etl_task_cfg d
+		where a.child_db_id = b.db_id
+		and a.parent_db_id = c.db_id
+        and a.task_id = d.task_id
+        and d.if_val = 1
+		and c.cluster_name in <iterate property="tables" open="(" close=")" conjunction=",">#tables[].storage_type#</iterate>
+        and c.db_name in <iterate property="tables" open="(" close=")" conjunction=",">#tables[].db_name#</iterate>
+		and a.parent_table_name in <iterate property="tables" open="(" close=")" conjunction=",">#tables[].table_name#</iterate>
+		group by c.cluster_name,c.db_name,a.parent_table_name
+	</select>
+	<insert id="insertMcTableInfo" parameterClass="McTableInfo">
+		<selectKey resultClass="java.lang.Integer" type="pre"
+			keyProperty="table_id">
+			SELECT hex(sha1(concat(#schema_name#,#table_name#,#storage_type#)))%(1024*1024*1024-1) as table_id
+		</selectKey>
+		INSERT INTO
+		mc_table_info
+		(table_id,schema_name,table_name,storage_type,db_name,table_owner,table_desc,table_size,refresh_cycle,refresh_type,refresh_datum_date,refresh_offset,add_time,update_time,is_validate)
+		VALUES
+		(#table_id#,
+		#schema_name#,#table_name#,#storage_type#,#db_name#,#table_owner#,
+		#table_desc#,#table_size#,#refresh_cycle#,
+		#refresh_type#,#refresh_datum_date#,#refresh_offset#,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,#status#)
+	</insert>
+    <delete id="deleteMcTableInfo" parameterClass="McTableInfo">
+            delete
+            from mc_table_info
+            where table_id = hex(sha1(concat(#schema_name#,#table_name#,#storage_type#)))%(1024*1024*1024-1)
+    </delete>
+	<insert id="insertMcColumnInfo" parameterClass="java.util.List">
+		INSERT INTO mc_column_info
+		(column_id,table_id,column_name,column_type,column_desc,column_rn,add_time,update_time,is_partition_column)
+		VALUES
+		<iterate conjunction=",">
+            (#McColumnInfo[].column_id#,#McColumnInfo[].table_id#,#McColumnInfo[].column_name#,
+            #McColumnInfo[].column_type#,#McColumnInfo[].column_desc#,#McColumnInfo[].column_rn#,
+            CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,#McColumnInfo[].is_partition_column#)
+        </iterate>
+		</insert>
+    <delete id="deleteMcColumnInfo" parameterClass="McTableInfo">
+            delete
+            from mc_column_info
+            where table_id = hex(sha1(concat(#schema_name#,#table_name#,#storage_type#)))%(1024*1024*1024-1)
+    </delete>
+	<insert id="insertMcDataTaskMap" parameterClass="McDataTaskMap">
+		INSERT INTO mc_data_task_map
+		(table_id,db_id,task_id,add_time,update_time)
+		VALUES
+		(#table_id#,#db_id#,#task_id#,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+	</insert>
+    <delete id="deleteMcDataTaskMap" parameterClass="Integer">
+           delete
+           from mc_data_task_map
+           where task_id = #taskId#
+    </delete>
+	<insert id="insertMcDataMap" parameterClass="McDataMap">
+		INSERT INTO mc_data_map
+		(task_id,parent_db_id,parent_schema,parent_table_name,child_db_id,child_schema,child_table_name,add_time)
+		VALUES
+		(#task_id#,#parent_db_id#,#parent_schema#,#parent_table_name#,#child_db_id#,#child_schema#,#child_table_name#,CURRENT_TIMESTAMP)
+	</insert>
+    <delete id="deleteMcDataMap" parameterClass="Integer">
+        delete
+        from mc_data_map
+        where task_id = #taskId#
+    </delete>
+    <select id="getTaskTable" parameterClass="Integer" resultClass="McTableInfo" >
+        select a.*
+        from mc_table_info a ,
+             mc_data_task_map b
+        where a.table_id = b.table_id
+        and b.task_id = #taskId#
+    </select>
+
+    <select id="getTableTaskId" parameterClass="McTableInfo" resultClass="Integer" >
+        select b.task_id
+        from mc_table_info a ,
+             mc_data_task_map b
+        where a.table_id = b.table_id
+        and a.storage_type = #storage_type#
+		and a.db_name = #db_name#
+		and a.table_name = #table_name#
+    </select>
+    <update id="updateTableInfo" parameterClass="McTableInfo">
+        update mc_table_info
+        set
+            schema_name        = #schema_name#,
+            table_name         = #table_name#,
+            db_name            = #db_name#,
+            storage_type       = #storage_type#,
+            table_owner        = #table_owner#,
+            table_desc         = #table_desc#,
+            table_size         = #table_size#,
+            refresh_cycle      = #refresh_cycle#,
+            refresh_type       = #refresh_type#,
+            table_access_level = #table_access_level#,
+            table_access_desc  = #table_access_desc#,
+            is_validate        = #status#,
+            update_time        = now()
+        where table_id = #table_id#
+    </update>
+    <select id="getTableIDbyTaskID" parameterClass="Integer" resultClass="Integer">
+        select DISTINCT table_id From mc_data_task_map where task_id=#taskId#
+    </select>
+    <select id="getTaskIDbyTableID" parameterClass="Integer" resultClass="Integer">
+        select task_id From mc_data_task_map where table_id=#tableId#
+    </select>
+</sqlMap>

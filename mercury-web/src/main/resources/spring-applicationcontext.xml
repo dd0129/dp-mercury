@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd"
+       default-lazy-init="true" default-autowire="byName">
+    <!-- <bean name="placeholder" lazy-init="false" class="com.dianping.lion.client.InitializeConfig">
+        <property name="propertiesPath" value="config/applicationContext.properties"/>
+        </bean> -->
+
+    <context:annotation-config />
+    <context:component-scan base-package="com.dianping" />
+     <aop:aspectj-autoproxy proxy-target-class="true"/>
+
+    <bean id="mysql-dataSource"
+          class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="${mysql.JDBC.driver}" />
+        <property name="username" value="${mysql.JDBC.username}" />
+        <property name="password" value="${mysql.JDBC.password}" />
+        <property name="url" value="${mysql.JDBC.url}" />
+    </bean>
+
+    <bean id="mysqlmeta-dataSource"
+          class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="${mysqlmeta.JDBC.driver}" />
+        <property name="username" value="${mysqlmeta.JDBC.username}" />
+        <property name="password" value="${mysqlmeta.JDBC.password}" />
+        <property name="url" value="${mysqlmeta.JDBC.url}" />
+    </bean>
+
+    <bean id="hivemeta-dataSource"
+          class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="${hivemeta.JDBC.driver}" />
+        <property name="username" value="${hivemeta.JDBC.username}" />
+        <property name="password" value="${hivemeta.JDBC.password}" />
+        <property name="url" value="${hivemeta.JDBC.url}" />
+    </bean>
+
+
+    <bean id="sqlserver-dataSource"
+          class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="com.mysql.jdbc.Driver" />
+        <property name="username" value="DianPingDW2" />
+        <property name="password" value="ertydfgh" />
+        <property name="url"
+                  value="jdbc:mysql://192.168.8.44:3306/DianPingDW2?useUnicode=true&amp;characterEncoding=utf-8" />
+    </bean>
+
+    <bean id="sqlserver-sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+        <property name="configLocation" value="classpath:sqlmap-config.xml" />
+        <property name="dataSource" ref="sqlserver-dataSource" />
+    </bean>
+
+    <bean id="sqlservermetaDAOImpl"
+          class="com.dianping.data.warehouse.masterdata.core.dao.impl.BaseDAOImpl">
+        <property name="sqlMapClient" ref="sqlserver-sqlMapClient" />
+    </bean>
+
+    <bean id="mysql-sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+        <property name="configLocation" value="classpath:sqlmap-config.xml" />
+        <property name="dataSource" ref="mysql-dataSource" />
+    </bean>
+
+    <bean id="mysqlmeta-sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+        <property name="configLocation" value="classpath:sqlmap-config.xml" />
+        <property name="dataSource" ref="mysqlmeta-dataSource" />
+    </bean>
+
+    <bean id="hivemeta-sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+        <property name="configLocation" value="classpath:sqlmap-config.xml" />
+        <property name="dataSource" ref="hivemeta-dataSource" />
+    </bean>
+
+    <bean id="mysqlDAOImpl"
+          class="com.dianping.data.warehouse.masterdata.core.dao.impl.BaseDAOImpl">
+        <property name="sqlMapClient" ref="mysql-sqlMapClient" />
+    </bean>
+
+    <bean id="hivemetaDAOImpl"
+          class="com.dianping.data.warehouse.masterdata.core.dao.impl.BaseDAOImpl">
+        <property name="sqlMapClient" ref="hivemeta-sqlMapClient" />
+    </bean>
+
+    <bean id="mysqlmetaDAOImpl"
+          class="com.dianping.data.warehouse.masterdata.core.dao.impl.BaseDAOImpl">
+        <property name="sqlMapClient" ref="mysqlmeta-sqlMapClient" />
+    </bean>
+
+
+    <bean id="MySQLMetaHandlerImpl"
+          class="com.dianping.data.warehouse.masterdata.core.handler.impl.MySQLMetaHandlerImpl">
+    </bean>
+
+    <bean id="HiveMetaHandlerImpl"
+          class="com.dianping.data.warehouse.masterdata.core.handler.impl.HiveMetaHandlerImpl">
+    </bean>
+
+    <bean id="SQLServerMetaHandlerImpl"
+          class="com.dianping.data.warehouse.masterdata.core.handler.impl.SQLServerMetaHandlerImpl">
+    </bean>
+
+    <bean id="MercuryServiceImpl"
+          class="com.dianping.data.warehouse.masterdata.core.service.MercuryServiceImpl">
+    </bean>
+
+    <bean id="McMetaServiceImpl"
+          class="com.dianping.data.warehouse.masterdata.core.service.McMetaServiceImpl">
+    </bean>
+
+    <bean id="dataBaseMetaHandler" class="org.springframework.beans.factory.config.MapFactoryBean">
+        <property name="sourceMap">
+            <map>
+                <entry key="hive" value-ref="HiveMetaHandlerImpl" />
+                <entry key="sqlserver" value-ref="SQLServerMetaHandlerImpl" />
+                <entry key="mysql" value-ref="MySQLMetaHandlerImpl" />
+            </map>
+        </property>
+    </bean>
+    <!-- transaction -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="mysql-dataSource" />
+    </bean>
+    <aop:config>
+        <aop:pointcut expression="execution(* com.dianping.data.warehouse.*.*.*.*.*(..))" id="transactionPointcut" />
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="transactionPointcut" />
+    </aop:config>
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="*"/>
+        </tx:attributes>
+    </tx:advice>
+</beans>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<sqlMap namespace="mcmysqlmeta">
+	<typeAlias type="com.dianping.data.warehouse.domain.McColumnInfo" alias="McColumnInfo" />
+	<typeAlias type="com.dianping.data.warehouse.domain.McTableInfo" alias="McTableInfo" />
+	<typeAlias type="com.dianping.data.warehouse.domain.TableExistStatus" alias="TableExistStatus" />
+    <typeAlias type="com.dianping.data.warehouse.domain.McTableQuery" alias="McTableQuery" />
+	<resultMap class="McTableInfo" id="table"></resultMap>
+	<select id="getMysqlDbNameList" resultClass="String">
+		SELECT distinct table_schema
+        FROM DP_TblInfo
+	</select>
+	<select id="getMysqlTableList" parameterClass="McTableQuery" resultClass="McTableInfo">
+		SELECT
+            'mysql' AS storage_type,
+            table_schema AS db_name,
+            table_name AS table_name,
+            table_rows AS table_size
+        FROM DP_TblInfo
+        WHERE
+               update_time > (
+				SELECT DATE(MAX(update_time)) FROM DP_TblInfo
+			     )
+			<isNotNull property="dbName" prepend=" AND "> table_schema = #dbName#</isNotNull>
+			<isNotNull property="tableName" prepend=" AND "> LOWER(table_name) LIKE '%$tableName$%'</isNotNull>
+		ORDER BY table_name
+	</select>
+	<select id="getMysqlColumnList" parameterClass="McTableQuery" resultClass="McColumnInfo">
+		SELECT column_name
+		      ,data_type as column_type
+	          ,character_maximum_length
+          FROM information_schema.columns
+          WHERE
+               table_schema=#dbName#
+               AND table_name =#tableName#
+          ORDER BY ordinal_position
+	</select>
+</sqlMap>

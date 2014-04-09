@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<sqlMap namespace="mchivemeta">
+	<typeAlias type="com.dianping.data.warehouse.domain.McColumnInfo" alias="McColumnInfo" />
+	<typeAlias type="com.dianping.data.warehouse.domain.McTableInfo" alias="McTableInfo" />
+    <typeAlias type="com.dianping.data.warehouse.domain.McTableQuery" alias="McTableQuery" />
+	<resultMap class="McTableInfo" id="table"></resultMap>
+	<select id="getHiveDbNameList" resultClass="java.lang.String">
+		SELECT DISTINCT name
+    	FROM DBS
+	</select>
+	<select id="getHiveTableList" parameterClass="McTableQuery" resultClass="McTableInfo">
+		SELECT 'hive' AS storage_type
+		       ,b.name AS db_name
+               ,SUBSTRING_INDEX(TBL_NAME,'_',1) as schema_name
+		       ,a.tbl_name AS table_name
+		       ,'' AS table_size
+    	FROM TBLS a
+    	    ,DBS b
+        WHERE 
+    		a.db_id=b.db_id
+    		<isNotNull property="dbName" prepend=" AND ">b.name=#dbName#</isNotNull>
+    		<isNotNull property="tableName" prepend=" AND "> LOWER(a.tbl_name) LIKE '%$tableName$%'</isNotNull>
+	</select>
+	<select id="getHiveColumnList" parameterClass="McTableQuery" resultClass="McColumnInfo">
+		SELECT a.column_name AS column_name,a.type_name AS column_type,'' AS column_rn,a.comment AS column_desc
+		FROM
+			COLUMNS_V2 a 
+			JOIN SDS c ON a.cd_id=c.cd_id
+			JOIN TBLS b ON c.sd_id=b.sd_id
+			JOIN DBS d ON b.db_id=d.db_id
+		WHERE
+			d.name=#dbName# AND tbl_name=#tableName#
+		ORDER BY a.integer_idx
+	</select>
+	<select id="getHiveParColumnList" parameterClass="McTableQuery" resultClass="McColumnInfo">
+	    SELECT
+			a.PKEY_NAME AS column_name
+		   ,a.PKEY_TYPE AS column_type
+		   ,'' AS column_rn
+		   ,'' AS column_desc
+		FROM PARTITION_KEYS a
+			JOIN TBLS b ON (a.TBL_ID = b.TBL_ID)
+			JOIN DBS c ON (b.DB_ID = c.DB_ID)
+		WHERE 
+			b.TBL_NAME=#tableName# AND c.NAME=#dbName#
+	</select>
+</sqlMap>
