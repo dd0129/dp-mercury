@@ -35,7 +35,7 @@ public class SQLServerMetaHandlerImpl extends AbstractMetaHandler implements Dat
             logger.error("get sqlserver table list failure", e);
             throw new RuntimeException("get sqlserver table list failure", e);
         }
-    }
+    }3
 
     @Override
     public List<McColumnInfo> getColumnList(McTableQuery query) {
